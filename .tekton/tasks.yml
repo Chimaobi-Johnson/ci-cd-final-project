@@ -20,10 +20,19 @@ spec:
         set -eu
         echo "Removing all files from ${WORKSPACE_SOURCE_PATH} ..."
         if [ -d "${WORKSPACE_SOURCE_PATH}" ] ; then
+          # Delete non-hidden files and directories
           rm -rf "${WORKSPACE_SOURCE_PATH:?}"/*
+          # Delete hidden files/dirs excluding ..
           rm -rf "${WORKSPACE_SOURCE_PATH}"/.[!.]*
+          # Delete hidden files/dirs starting with .. plus other chars
           rm -rf "${WORKSPACE_SOURCE_PATH}"/..?*
+          # Explicitly delete .git if it exists
+          if [ -d "${WORKSPACE_SOURCE_PATH}/.git" ]; then
+            echo "Removing .git directory..."
+            rm -rf "${WORKSPACE_SOURCE_PATH}/.git"
+          fi
         fi
+
 ---
 apiVersion: tekton.dev/v1beta1
 kind: Task

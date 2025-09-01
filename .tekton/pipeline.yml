@@ -1,0 +1,68 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: my-pipeline
+spec:
+  workspaces:
+    - name: output
+  params:
+    - name: app-name
+      type: string
+      default: myapp
+    - name: build-image
+      type: string
+      default: image-registry.openshift-image-registry.svc:5000/myproject/myapp:latest
+  tasks:
+    - name: cleanup
+      taskRef:
+        name: cleanup
+      workspaces:
+        - name: source
+          workspace: output
+
+    - name: git-clone
+      taskRef:
+        name: git-clone
+      workspaces:
+        - name: output
+          workspace: output
+
+    - name: lint
+      taskRef:
+        name: flake8
+      workspaces:
+        - name: source
+          workspace: output
+      runAfter:
+        - git-clone
+
+    - name: test
+      taskRef:
+        name: nose
+      workspaces:
+        - name: source
+          workspace: output
+      runAfter:
+        - lint
+
+    - name: build
+      taskRef:
+        name: buildah
+      workspaces:
+        - name: source
+          workspace: output
+      params:
+        - name: IMAGE
+          value: $(params.build-image)
+      runAfter:
+        - test
+
+    - name: deploy
+      taskRef:
+        name: openshift-client
+      params:
+        - name: ARGS
+          value:
+            - "oc create deployment $(params.app-name) --image=$(params.build-image) --dry-run=client -o yaml | oc apply -f -"
+      runAfter:
+        - build
